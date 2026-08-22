@@ -2,7 +2,6 @@ return function()
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local RunService = game:GetService("RunService")
-    local UserInputService = game:GetService("UserInputService")
     local Camera = workspace.CurrentCamera
     local LocalPlayer = Players.LocalPlayer
     local Mouse = LocalPlayer:GetMouse()
@@ -16,15 +15,14 @@ return function()
         ToggleKeybind = Enum.KeyCode.RightShift,
     })
 
-    local AimbotTab = Window:AddTab("Aimbot", "crosshair")
-    local ESPTab = Window:AddTab("ESP", "eye")
-    local SettingsTab = Window:AddTab("Settings", "settings")
+    local AimbotTab = Window:AddTab("Aimbot")
+    local ESPTab = Window:AddTab("ESP")
+    local SettingsTab = Window:AddTab("Settings")
 
-    local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim", Icon = "crosshair"})
-    local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting", Icon = "user"})
-    local ESPGroup = ESPTab:AddGroupbox({Name = "ESP Settings", Icon = "eye"})
-    local ESPColorGroup = ESPTab:AddGroupbox({Name = "ESP Color", Icon = "palette"})
-    local SettingsGroup = SettingsTab:AddGroupbox({Name = "General", Icon = "settings"})
+    local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim"})
+    local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting"})
+    local ESPGroup = ESPTab:AddGroupbox({Name = "ESP"})
+    local SettingsGroup = SettingsTab:AddGroupbox({Name = "General"})
 
     local Config = {
         SilentAim = false,
@@ -66,27 +64,27 @@ return function()
         return Char and Char:FindFirstChild("HumanoidRootPart")
     end
 
-    local function IsAlive(Player)
-        local Char = Player.Character
+    local function IsAlive(Plr)
+        local Char = Plr.Character
         if not Char then return false end
         local Hum = Char:FindFirstChild("Humanoid")
         return Hum and Hum.Health > 0
     end
 
-    local function IsWhitelisted(Player)
-        return Config.Whitelist[Player.UserId] == true
+    local function IsWhitelisted(Plr)
+        return Config.Whitelist[Plr.UserId] == true
     end
 
     local function GetClosestPlayer()
         local Closest = nil
         local ShortestDist = Config.FOV
-        for _, Player in ipairs(Players:GetPlayers()) do
-            if Player == LocalPlayer then continue end
-            if not IsAlive(Player) then continue end
-            if Config.TeamCheck and Player.Team == LocalPlayer.Team then continue end
-            if IsWhitelisted(Player) then continue end
-            local Char = Player.Character
-            local Root = Char:FindFirstChild(Config.TargetPart)
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr == LocalPlayer then continue end
+            if not IsAlive(Plr) then continue end
+            if Config.TeamCheck and Plr.Team == LocalPlayer.Team then continue end
+            if IsWhitelisted(Plr) then continue end
+            local Char = Plr.Character
+            local Root = Char and Char:FindFirstChild(Config.TargetPart)
             if not Root then continue end
             local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
             if not OnScreen then continue end
@@ -104,7 +102,7 @@ return function()
             local Dist = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
             if Dist < ShortestDist then
                 ShortestDist = Dist
-                Closest = Player
+                Closest = Plr
             end
         end
         return Closest
@@ -142,8 +140,8 @@ return function()
         end))
     end
 
-    local function CreateESP(Player)
-        if ESPObjects[Player] then return end
+    local function CreateESP(Plr)
+        if ESPObjects[Plr] then return end
         local ESP = {}
         ESP.Box = Drawing.new("Square")
         ESP.Box.Thickness = 1
@@ -167,19 +165,21 @@ return function()
         ESP.Tracer = Drawing.new("Line")
         ESP.Tracer.Thickness = 1
         ESP.Tracer.Visible = false
-        ESPObjects[Player] = ESP
+        ESPObjects[Plr] = ESP
     end
 
-    local function RemoveESP(Player)
-        if ESPObjects[Player] then
-            for _, Obj in pairs(ESPObjects[Player]) do
+    local function RemoveESP(Plr)
+        if ESPObjects[Plr] then
+            for _, Obj in pairs(ESPObjects[Plr]) do
                 pcall(function() Obj:Remove() end)
             end
-            ESPObjects[Player] = nil
+            ESPObjects[Plr] = nil
         end
     end
 
     local function UpdateESP()
+        FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y)
+        FOVCircle.Radius = Config.FOV
         if not Config.ESPEnabled then
             for _, ESP in pairs(ESPObjects) do
                 for _, Obj in pairs(ESP) do
@@ -188,13 +188,13 @@ return function()
             end
             return
         end
-        for _, Player in ipairs(Players:GetPlayers()) do
-            if Player == LocalPlayer then continue end
-            if not ESPObjects[Player] then
-                CreateESP(Player)
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr == LocalPlayer then continue end
+            if not ESPObjects[Plr] then
+                CreateESP(Plr)
             end
-            local ESP = ESPObjects[Player]
-            local Char = Player.Character
+            local ESP = ESPObjects[Plr]
+            local Char = Plr.Character
             local Root = Char and Char:FindFirstChild("HumanoidRootPart")
             local Hum = Char and Char:FindFirstChild("Humanoid")
             if Root and Hum and Hum.Health > 0 then
@@ -219,7 +219,7 @@ return function()
                                 ESP.Box.Visible = false
                             end
                             if Config.ESPNames then
-                                ESP.Name.Text = Player.DisplayName
+                                ESP.Name.Text = Plr.DisplayName
                                 ESP.Name.Position = Vector2.new(Pos.X, BoxPos.Y - 16)
                                 ESP.Name.Color = Config.ESPColor
                                 ESP.Name.Visible = true
@@ -267,8 +267,8 @@ return function()
     end
 
     local function CleanupESP()
-        for Player, _ in pairs(ESPObjects) do
-            RemoveESP(Player)
+        for Plr, _ in pairs(ESPObjects) do
+            RemoveESP(Plr)
         end
         ESPObjects = {}
     end
@@ -277,7 +277,7 @@ return function()
         Text = "Silent Aim",
         Default = false,
         Callback = function(Value) Config.SilentAim = Value end,
-    }):AddKeyPicker("SilentAimKey", {Default = "Q", Mode = "Toggle", SyncToggleState = true})
+    })
 
     AimGroup:AddDropdown("AimPart", {
         Text = "Aim Part",
@@ -365,7 +365,7 @@ return function()
         Text = "Enable ESP",
         Default = false,
         Callback = function(Value) Config.ESPEnabled = Value if not Value then CleanupESP() end end,
-    }):AddKeyPicker("ESPKey", {Default = "E", Mode = "Toggle", SyncToggleState = true})
+    })
 
     ESPGroup:AddToggle("ESPBoxes", {
         Text = "Boxes",
@@ -406,12 +406,6 @@ return function()
         Callback = function(Value) Config.ESPMaxDistance = Value end,
     })
 
-    ESPColorGroup:AddColorPicker("ESPColorPick", {
-        Text = "ESP Color",
-        Default = Color3.fromRGB(255, 255, 255),
-        Callback = function(Value) Config.ESPColor = Value end,
-    })
-
     SettingsGroup:AddButton({
         Text = "Destroy UI",
         Func = function()
@@ -423,21 +417,21 @@ return function()
     pcall(HookRemote)
     Connections.ESP = RunService.RenderStepped:Connect(UpdateESP)
 
-    Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Player)
-        CreateESP(Player)
+    Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Plr)
+        CreateESP(Plr)
     end)
 
-    Connections.PlayerRemoving = Players.PlayerRemoving:Connect(function(Player)
-        RemoveESP(Player)
-        Config.Whitelist[Player.UserId] = nil
-        if Config.PriorityTarget == Player then
+    Connections.PlayerRemoving = Players.PlayerRemoving:Connect(function(Plr)
+        RemoveESP(Plr)
+        Config.Whitelist[Plr.UserId] = nil
+        if Config.PriorityTarget == Plr then
             Config.PriorityTarget = nil
         end
     end)
 
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player ~= LocalPlayer then
-            CreateESP(Player)
+    for _, Plr in ipairs(Players:GetPlayers()) do
+        if Plr ~= LocalPlayer then
+            CreateESP(Plr)
         end
     end
 end
