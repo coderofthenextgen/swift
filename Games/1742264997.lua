@@ -15,9 +15,9 @@ return function()
         ToggleKeybind = Enum.KeyCode.RightShift,
     })
 
-    local AimbotTab = Window:AddTab("Aimbot")
-    local ESPTab = Window:AddTab("ESP")
-    local SettingsTab = Window:AddTab("Settings")
+    local AimbotTab = Window:AddTab("Aimbot", "crosshair")
+    local ESPTab = Window:AddTab("ESP", "eye")
+    local SettingsTab = Window:AddTab("Settings", "settings")
 
     local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim"})
     local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting"})
@@ -188,8 +188,8 @@ return function()
         end
 
         if Config.JumpEnabled then
-            if HRP.Velocity.Y > 0 or Hum.FloorMaterial == Enum.Material.Air then
-                if HRP.Velocity.Y < Config.JumpValue then
+            if Hum:GetState() == Enum.HumanoidStateType.Jumping or Hum:GetState() == Enum.HumanoidStateType.Freefall then
+                if HRP.Velocity.Y < Config.JumpValue and HRP.Velocity.Y > 0 then
                     HRP.Velocity = Vector3.new(HRP.Velocity.X, Config.JumpValue, HRP.Velocity.Z)
                 end
             end
@@ -202,19 +202,25 @@ return function()
         if not Char then return end
         local Hum = Char:FindFirstChild("Humanoid")
         if not Hum or Hum.Health <= 0 then return end
-        local CurrentAmmo = LocalPlayer.PlayerGui:FindFirstChild("WeaponUI")
-        if CurrentAmmo then
-            local AmmoLabel = CurrentAmmo:FindFirstChild("Ammo")
-            if AmmoLabel then
-                local Text = AmmoLabel:FindFirstChild("Current") and AmmoLabel.Current.Text or ""
-                if Text == "0" then
-                    local ReloadRemote = Remotes:FindFirstChild("Reload")
-                    if ReloadRemote then
-                        ReloadRemote:FireServer()
-                    end
+
+        local success, err = pcall(function()
+            local WeaponUI = LocalPlayer.PlayerGui:WaitForChild("WeaponUI", 1)
+            if not WeaponUI then return end
+
+            local AmmoFrame = WeaponUI:FindFirstChild("Ammo", true)
+            if not AmmoFrame then return end
+
+            local CurrentLabel = AmmoFrame:FindFirstChild("Current", true)
+            if not CurrentLabel then return end
+
+            local Text = CurrentLabel.Text or ""
+            if Text == "0" or Text == "" then
+                local ReloadRemote = Remotes:FindFirstChild("Reload")
+                if ReloadRemote then
+                    ReloadRemote:FireServer()
                 end
             end
-        end
+        end)
     end
 
     local function GetClosestPlayer()
