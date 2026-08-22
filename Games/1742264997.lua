@@ -89,7 +89,7 @@ return function()
         RayParams.FilterType = Enum.RaycastFilterType.Exclude
         RayParams.FilterDescendantsInstances = {Char}
         RayParams.IgnoreWater = true
-        local Dir = Part.Position - Origin
+        local Dir = (Part.Position - Origin) * 1.01
         local Result = workspace:Raycast(Origin, Dir, RayParams)
         if not Result then return true, nil end
         if Result.Instance:IsDescendantOf(Part.Parent) then
