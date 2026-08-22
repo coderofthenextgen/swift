@@ -2,6 +2,7 @@ return function()
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
     local Camera = workspace.CurrentCamera
     local LocalPlayer = Players.LocalPlayer
     local Mouse = LocalPlayer:GetMouse()
@@ -12,17 +13,18 @@ return function()
         Title = "Swift - SCP Roleplay",
         Folder = "Swift_SCP",
         Size = UDim2.fromOffset(700, 500),
-        ToggleKey = Enum.KeyCode.RightShift,
+        ToggleKeybind = Enum.KeyCode.RightShift,
     })
 
-    local AimbotTab = Window:AddTab("Aimbot")
-    local ESPTab = Window:AddTab("ESP")
-    local SettingsTab = Window:AddTab("Settings")
+    local AimbotTab = Window:AddTab("Aimbot", "crosshair")
+    local ESPTab = Window:AddTab("ESP", "eye")
+    local SettingsTab = Window:AddTab("Settings", "settings")
 
-    local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim"})
-    local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting"})
-    local ESPGroup = ESPTab:AddGroupbox({Name = "ESP Settings"})
-    local SettingsGroup = SettingsTab:AddGroupbox({Name = "Settings"})
+    local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim", Icon = "crosshair"})
+    local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting", Icon = "user"})
+    local ESPGroup = ESPTab:AddGroupbox({Name = "ESP Settings", Icon = "eye"})
+    local ESPColorGroup = ESPTab:AddGroupbox({Name = "ESP Color", Icon = "palette"})
+    local SettingsGroup = SettingsTab:AddGroupbox({Name = "General", Icon = "settings"})
 
     local Config = {
         SilentAim = false,
@@ -272,10 +274,10 @@ return function()
     end
 
     AimGroup:AddToggle("SilentAim", {
-        Text = "Enabled",
+        Text = "Silent Aim",
         Default = false,
         Callback = function(Value) Config.SilentAim = Value end,
-    })
+    }):AddKeyPicker("SilentAimKey", {Default = "Q", Mode = "Toggle", SyncToggleState = true})
 
     AimGroup:AddDropdown("AimPart", {
         Text = "Aim Part",
@@ -284,15 +286,8 @@ return function()
         Callback = function(Value) Config.AimPart = Value end,
     })
 
-    AimGroup:AddDropdown("TargetPart", {
-        Text = "Target Part",
-        Values = {"HumanoidRootPart", "Head", "Torso"},
-        Default = "HumanoidRootPart",
-        Callback = function(Value) Config.TargetPart = Value end,
-    })
-
     AimGroup:AddSlider("FOVSlider", {
-        Text = "FOV",
+        Text = "FOV Size",
         Default = 150,
         Min = 10,
         Max = 500,
@@ -318,6 +313,13 @@ return function()
         Callback = function(Value) Config.WallCheck = Value end,
     })
 
+    TargetGroup:AddDropdown("TargetPart", {
+        Text = "Lock Part",
+        Values = {"HumanoidRootPart", "Head", "Torso"},
+        Default = "HumanoidRootPart",
+        Callback = function(Value) Config.TargetPart = Value end,
+    })
+
     TargetGroup:AddDropdown("PriorityTarget", {
         Text = "Priority Target",
         Values = (function()
@@ -338,10 +340,7 @@ return function()
         end,
     })
 
-    TargetGroup:AddButton({
-        Text = "Clear Priority",
-        Func = function() Config.PriorityTarget = nil end,
-    })
+    TargetGroup:AddButton({Text = "Clear Priority", Func = function() Config.PriorityTarget = nil end})
 
     TargetGroup:AddButton({
         Text = "Whitelist Closest",
@@ -363,10 +362,10 @@ return function()
     })
 
     ESPGroup:AddToggle("ESPEnabled", {
-        Text = "Enabled",
+        Text = "Enable ESP",
         Default = false,
         Callback = function(Value) Config.ESPEnabled = Value if not Value then CleanupESP() end end,
-    })
+    }):AddKeyPicker("ESPKey", {Default = "E", Mode = "Toggle", SyncToggleState = true})
 
     ESPGroup:AddToggle("ESPBoxes", {
         Text = "Boxes",
@@ -407,8 +406,21 @@ return function()
         Callback = function(Value) Config.ESPMaxDistance = Value end,
     })
 
-    pcall(HookRemote)
+    ESPColorGroup:AddColorPicker("ESPColorPick", {
+        Text = "ESP Color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Callback = function(Value) Config.ESPColor = Value end,
+    })
 
+    SettingsGroup:AddButton({
+        Text = "Destroy UI",
+        Func = function()
+            CleanupESP()
+            Library:Unload()
+        end,
+    })
+
+    pcall(HookRemote)
     Connections.ESP = RunService.RenderStepped:Connect(UpdateESP)
 
     Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Player)
