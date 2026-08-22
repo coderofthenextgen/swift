@@ -16,11 +16,13 @@ return function()
     })
 
     local AimbotTab = Window:AddTab("Aimbot", "crosshair")
+    local PlayerTab = Window:AddTab("Player", "user")
     local ESPTab = Window:AddTab("ESP", "eye")
     local SettingsTab = Window:AddTab("Settings", "settings")
 
     local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim"})
     local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting"})
+    local PlayerGroup = PlayerTab:AddGroupbox({Name = "Movement"})
     local ESPGroup = ESPTab:AddGroupbox({Name = "ESP"})
     local SettingsGroup = SettingsTab:AddGroupbox({Name = "General"})
 
@@ -45,7 +47,6 @@ return function()
         SpeedValue = 16,
         JumpEnabled = false,
         JumpValue = 50,
-        AutoReload = false,
         Whitelist = {},
         PriorityTarget = nil,
     }
@@ -194,33 +195,6 @@ return function()
                 end
             end
         end
-    end
-
-    local function AutoReload()
-        if not Config.AutoReload then return end
-        local Char = GetCharacter()
-        if not Char then return end
-        local Hum = Char:FindFirstChild("Humanoid")
-        if not Hum or Hum.Health <= 0 then return end
-
-        local success, err = pcall(function()
-            local WeaponUI = LocalPlayer.PlayerGui:WaitForChild("WeaponUI", 1)
-            if not WeaponUI then return end
-
-            local AmmoFrame = WeaponUI:FindFirstChild("Ammo", true)
-            if not AmmoFrame then return end
-
-            local CurrentLabel = AmmoFrame:FindFirstChild("Current", true)
-            if not CurrentLabel then return end
-
-            local Text = CurrentLabel.Text or ""
-            if Text == "0" or Text == "" then
-                local ReloadRemote = Remotes:FindFirstChild("Reload")
-                if ReloadRemote then
-                    ReloadRemote:FireServer()
-                end
-            end
-        end)
     end
 
     local function GetClosestPlayer()
@@ -521,13 +495,13 @@ return function()
         Callback = function(Value) Config.ESPTeamColor = Value end,
     })
 
-    SettingsGroup:AddToggle("SpeedEnabled", {
+    PlayerGroup:AddToggle("SpeedEnabled", {
         Text = "Velocity Speed",
         Default = false,
         Callback = function(Value) Config.SpeedEnabled = Value end,
     })
 
-    SettingsGroup:AddSlider("SpeedValue", {
+    PlayerGroup:AddSlider("SpeedValue", {
         Text = "Speed",
         Default = 16,
         Min = 16,
@@ -536,25 +510,19 @@ return function()
         Callback = function(Value) Config.SpeedValue = Value end,
     })
 
-    SettingsGroup:AddToggle("JumpEnabled", {
+    PlayerGroup:AddToggle("JumpEnabled", {
         Text = "Velocity Jump",
         Default = false,
         Callback = function(Value) Config.JumpEnabled = Value end,
     })
 
-    SettingsGroup:AddSlider("JumpValue", {
+    PlayerGroup:AddSlider("JumpValue", {
         Text = "Jump Power",
         Default = 50,
         Min = 50,
         Max = 200,
         Rounding = 0,
         Callback = function(Value) Config.JumpValue = Value end,
-    })
-
-    SettingsGroup:AddToggle("AutoReload", {
-        Text = "Auto Reload",
-        Default = false,
-        Callback = function(Value) Config.AutoReload = Value end,
     })
 
     SettingsGroup:AddButton({
@@ -569,8 +537,6 @@ return function()
         UpdateESP()
         UpdateVelocity()
     end)
-
-    Connections.Reload = RunService.Heartbeat:Connect(AutoReload)
 
     Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Plr)
         CreateESP(Plr)
