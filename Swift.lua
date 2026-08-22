@@ -1,4 +1,4 @@
-local Repo = "https://raw.githubusercontent.com/coderofthenextgen/Swift/main/"
+Repo = "https://raw.githubusercontent.com/coderofthenextgen/Swift/main/"
 local UniverseId = game.GameId
 
 Library = loadstring(game:HttpGet(Repo .. "Modules/Dependencies.lua"))()
@@ -12,8 +12,4 @@ if Success and Script then
 else
     Library:Notify({Title = "Swift", Description = "Script not found for this game! (ID: " .. UniverseId .. ")", Time = 5})
     task.wait(5)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Swift",
-        Text = "Script not found!",
-    })
 end
