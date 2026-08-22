@@ -1,15 +1,21 @@
-Repo = "https://raw.githubusercontent.com/coderofthenextgen/Swift/main/"
+local Repo = "https://raw.githubusercontent.com/coderofthenextgen/Swift/main/"
 local UniverseId = game.GameId
 
-Library = loadstring(game:HttpGet(Repo .. "Modules/Dependencies.lua"))()
+Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua"))()
 
 if not Library then
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "Swift",
-        Text = "Failed to load dependencies!",
+        Text = "Failed to load Obsidian Library!",
     })
     return
 end
+
+SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/SaveManager.lua"))()
+ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/ThemeManager.lua"))()
+
+if SaveManager then SaveManager:SetLibrary(Library) end
+if ThemeManager then ThemeManager:SetLibrary(Library) end
 
 local Success, Script = pcall(function()
     return loadstring(game:HttpGet(Repo .. "Games/" .. UniverseId .. ".lua"))()
