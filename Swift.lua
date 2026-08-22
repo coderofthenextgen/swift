@@ -1,14 +1,12 @@
 Repo = "https://raw.githubusercontent.com/coderofthenextgen/Swift/main/"
 local UniverseId = game.GameId
 
-local DepSuccess, DepErr = pcall(function()
-    Library = loadstring(game:HttpGet(Repo .. "Modules/Dependencies.lua"))()
-end)
+Library = loadstring(game:HttpGet(Repo .. "Modules/Dependencies.lua"))()
 
-if not DepSuccess or not Library then
+if not Library then
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "Swift",
-        Text = "Failed to load dependencies: " .. tostring(DepErr),
+        Text = "Failed to load dependencies!",
     })
     return
 end
