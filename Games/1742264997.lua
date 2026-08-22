@@ -23,7 +23,29 @@ return function()
     local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim"})
     local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting"})
     local PlayerGroup = PlayerTab:AddGroupbox({Name = "Movement"})
+    local TeleportGroup = PlayerTab:AddGroupbox({Name = "Teleport"})
     local ESPGroup = ESPTab:AddGroupbox({Name = "ESP"})
+
+    local function TeleportTo(CFrame)
+        local Char = GetCharacter()
+        local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+        if HRP then
+            HRP.CFrame = CFrame
+        end
+    end
+
+    local Locations = {
+        ["Surface"] = CFrame.new(325, 3, -244),
+        ["Gate A"] = CFrame.new(-1854, 14, -1152),
+        ["Gate B"] = CFrame.new(2008, 14, -1152),
+        ["SCP-173"] = CFrame.new(-1620, 6, -236),
+        ["SCP-106"] = CFrame.new(-328, 6, -236),
+        ["SCP-096"] = CFrame.new(-416, 6, -236),
+        ["Heavy Containment"] = CFrame.new(-300, 6, 700),
+        ["Light Containment"] = CFrame.new(300, 6, 700),
+        ["Tesla Gate"] = CFrame.new(-900, 6, -600),
+        ["Entrance Zone"] = CFrame.new(0, 6, -900),
+    }
     local SettingsGroup = SettingsTab:AddGroupbox({Name = "General"})
 
     local Config = {
@@ -47,6 +69,8 @@ return function()
         SpeedValue = 16,
         JumpEnabled = false,
         JumpValue = 50,
+        NoclipEnabled = false,
+        InfiniteAmmo = false,
         Whitelist = {},
         PriorityTarget = nil,
     }
@@ -195,6 +219,38 @@ return function()
                 end
             end
         end
+    end
+
+    local function UpdateNoclip()
+        if not Config.NoclipEnabled then return end
+        local Char = GetCharacter()
+        if not Char then return end
+        for _, Part in ipairs(Char:GetDescendants()) do
+            if Part:IsA("BasePart") then
+                Part.CanCollide = false
+            end
+        end
+    end
+
+    local function UpdateInfiniteAmmo()
+        if not Config.InfiniteAmmo then return end
+        pcall(function()
+            local WeaponUI = LocalPlayer.PlayerGui:FindFirstChild("WeaponUI")
+            if not WeaponUI then return end
+            local AmmoFrame = WeaponUI:FindFirstChild("Ammo", true)
+            if not AmmoFrame then return end
+            local ClipLabel = AmmoFrame:FindFirstChild("Clip", true)
+            local ReserveLabel = AmmoFrame:FindFirstChild("Reserve", true)
+            if ClipLabel then
+                local Current = tonumber(ClipLabel.Text)
+                if Current and Current <= 5 then
+                    ClipLabel.Text = "999"
+                end
+            end
+            if ReserveLabel then
+                ReserveLabel.Text = "999"
+            end
+        end)
     end
 
     local function GetClosestPlayer()
@@ -525,6 +581,25 @@ return function()
         Callback = function(Value) Config.JumpValue = Value end,
     })
 
+    PlayerGroup:AddToggle("NoclipEnabled", {
+        Text = "Noclip",
+        Default = false,
+        Callback = function(Value) Config.NoclipEnabled = Value end,
+    })
+
+    PlayerGroup:AddToggle("InfiniteAmmo", {
+        Text = "Infinite Ammo",
+        Default = false,
+        Callback = function(Value) Config.InfiniteAmmo = Value end,
+    })
+
+    for Name, Pos in pairs(Locations) do
+        TeleportGroup:AddButton({
+            Text = Name,
+            Func = function() TeleportTo(Pos) end,
+        })
+    end
+
     SettingsGroup:AddButton({
         Text = "Destroy UI",
         Func = function()
@@ -536,6 +611,8 @@ return function()
     Connections.ESP = RunService.RenderStepped:Connect(function()
         UpdateESP()
         UpdateVelocity()
+        UpdateNoclip()
+        UpdateInfiniteAmmo()
     end)
 
     Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Plr)
