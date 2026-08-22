@@ -23,37 +23,7 @@ return function()
     local AimGroup = AimbotTab:AddGroupbox({Name = "Silent Aim"})
     local TargetGroup = AimbotTab:AddGroupbox({Name = "Custom Targeting"})
     local PlayerGroup = PlayerTab:AddGroupbox({Name = "Movement"})
-    local TeleportGroup = PlayerTab:AddGroupbox({Name = "Teleport"})
     local ESPGroup = ESPTab:AddGroupbox({Name = "ESP"})
-
-    local function TeleportTo(CFrame)
-        local Char = GetCharacter()
-        local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
-        if HRP then
-            HRP.CFrame = CFrame
-        end
-    end
-
-    local function TeleportToCursor()
-        local Mouse = LocalPlayer:GetMouse()
-        if Mouse.Hit then
-            TeleportTo(Mouse.Hit + Vector3.new(0, 3, 0))
-        end
-    end
-
-    local function TeleportToPlayer(Name)
-        for _, Plr in ipairs(Players:GetPlayers()) do
-            if Plr.DisplayName == Name or Plr.Name == Name then
-                local Char = Plr.Character
-                local Root = Char and Char:FindFirstChild("HumanoidRootPart")
-                if Root then
-                    TeleportTo(Root.CFrame + Vector3.new(0, 3, 0))
-                end
-                break
-            end
-        end
-    end
-    local SettingsGroup = SettingsTab:AddGroupbox({Name = "General"})
 
     local Config = {
         SilentAim = false,
@@ -77,7 +47,6 @@ return function()
         JumpEnabled = false,
         JumpValue = 50,
         NoclipEnabled = false,
-        InfiniteAmmo = false,
         Whitelist = {},
         PriorityTarget = nil,
     }
@@ -237,27 +206,6 @@ return function()
                 Part.CanCollide = false
             end
         end
-    end
-
-    local function UpdateInfiniteAmmo()
-        if not Config.InfiniteAmmo then return end
-        pcall(function()
-            local WeaponUI = LocalPlayer.PlayerGui:FindFirstChild("WeaponUI")
-            if not WeaponUI then return end
-            local AmmoFrame = WeaponUI:FindFirstChild("Ammo", true)
-            if not AmmoFrame then return end
-            local ClipLabel = AmmoFrame:FindFirstChild("Clip", true)
-            local ReserveLabel = AmmoFrame:FindFirstChild("Reserve", true)
-            if ClipLabel then
-                local Current = tonumber(ClipLabel.Text)
-                if Current and Current <= 5 then
-                    ClipLabel.Text = "999"
-                end
-            end
-            if ReserveLabel then
-                ReserveLabel.Text = "999"
-            end
-        end)
     end
 
     local function GetClosestPlayer()
@@ -594,30 +542,6 @@ return function()
         Callback = function(Value) Config.NoclipEnabled = Value end,
     })
 
-    PlayerGroup:AddToggle("InfiniteAmmo", {
-        Text = "Infinite Ammo",
-        Default = false,
-        Callback = function(Value) Config.InfiniteAmmo = Value end,
-    })
-
-    TeleportGroup:AddButton({
-        Text = "Teleport to Cursor",
-        Func = function() TeleportToCursor() end,
-    })
-
-    TeleportGroup:AddDropdown("TeleportPlayer", {
-        Text = "Teleport to Player",
-        Values = (function()
-            local Names = {}
-            for _, P in ipairs(Players:GetPlayers()) do
-                if P ~= LocalPlayer then table.insert(Names, P.DisplayName) end
-            end
-            return Names
-        end)(),
-        Default = "",
-        Callback = function(Value) TeleportToPlayer(Value) end,
-    })
-
     SettingsGroup:AddButton({
         Text = "Destroy UI",
         Func = function()
@@ -630,7 +554,6 @@ return function()
         UpdateESP()
         UpdateVelocity()
         UpdateNoclip()
-        UpdateInfiniteAmmo()
     end)
 
     Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Plr)
