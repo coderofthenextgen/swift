@@ -34,18 +34,25 @@ return function()
         end
     end
 
-    local Locations = {
-        ["Surface"] = CFrame.new(325, 3, -244),
-        ["Gate A"] = CFrame.new(-1854, 14, -1152),
-        ["Gate B"] = CFrame.new(2008, 14, -1152),
-        ["SCP-173"] = CFrame.new(-1620, 6, -236),
-        ["SCP-106"] = CFrame.new(-328, 6, -236),
-        ["SCP-096"] = CFrame.new(-416, 6, -236),
-        ["Heavy Containment"] = CFrame.new(-300, 6, 700),
-        ["Light Containment"] = CFrame.new(300, 6, 700),
-        ["Tesla Gate"] = CFrame.new(-900, 6, -600),
-        ["Entrance Zone"] = CFrame.new(0, 6, -900),
-    }
+    local function TeleportToCursor()
+        local Mouse = LocalPlayer:GetMouse()
+        if Mouse.Hit then
+            TeleportTo(Mouse.Hit + Vector3.new(0, 3, 0))
+        end
+    end
+
+    local function TeleportToPlayer(Name)
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr.DisplayName == Name or Plr.Name == Name then
+                local Char = Plr.Character
+                local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+                if Root then
+                    TeleportTo(Root.CFrame + Vector3.new(0, 3, 0))
+                end
+                break
+            end
+        end
+    end
     local SettingsGroup = SettingsTab:AddGroupbox({Name = "General"})
 
     local Config = {
@@ -593,12 +600,23 @@ return function()
         Callback = function(Value) Config.InfiniteAmmo = Value end,
     })
 
-    for Name, Pos in pairs(Locations) do
-        TeleportGroup:AddButton({
-            Text = Name,
-            Func = function() TeleportTo(Pos) end,
-        })
-    end
+    TeleportGroup:AddButton({
+        Text = "Teleport to Cursor",
+        Func = function() TeleportToCursor() end,
+    })
+
+    TeleportGroup:AddDropdown("TeleportPlayer", {
+        Text = "Teleport to Player",
+        Values = (function()
+            local Names = {}
+            for _, P in ipairs(Players:GetPlayers()) do
+                if P ~= LocalPlayer then table.insert(Names, P.DisplayName) end
+            end
+            return Names
+        end)(),
+        Default = "",
+        Callback = function(Value) TeleportToPlayer(Value) end,
+    })
 
     SettingsGroup:AddButton({
         Text = "Destroy UI",
