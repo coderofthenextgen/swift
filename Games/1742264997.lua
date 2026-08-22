@@ -2,11 +2,11 @@ return function()
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
     local Camera = workspace.CurrentCamera
     local LocalPlayer = Players.LocalPlayer
     local Mouse = LocalPlayer:GetMouse()
     local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-    local ShootRemote = Remotes:WaitForChild("RemoteEvent")
 
     local Window = Library:CreateWindow({
         Title = "Swift - SCP Roleplay",
@@ -30,7 +30,7 @@ return function()
         TargetPart = "HumanoidRootPart",
         TeamCheck = false,
         WallCheck = false,
-        FOV = 150,
+        FOV = 300,
         ShowFOV = false,
         ESPEnabled = false,
         ESPBoxes = false,
@@ -75,69 +75,118 @@ return function()
         return Config.Whitelist[Plr.UserId] == true
     end
 
+    local function IsVisible(Part, Origin)
+        local Char = GetCharacter()
+        if not (Char and Part) then return false, nil end
+        local RayParams = RaycastParams.new()
+        RayParams.FilterType = Enum.RaycastFilterType.Exclude
+        RayParams.FilterDescendantsInstances = {Char}
+        RayParams.IgnoreWater = true
+        local Dir = Part.Position - Origin
+        local Result = workspace:Raycast(Origin, Dir, RayParams)
+        if not Result then return true, nil end
+        if Result.Instance:IsDescendantOf(Part.Parent) then
+            return true, Result.Instance
+        end
+        return false, Result.Instance
+    end
+
+    local function IsSameTeam(Plr)
+        if not Config.TeamCheck then return false end
+        return LocalPlayer.Team and Plr.Team and LocalPlayer.Team == Plr.Team
+    end
+
+    local function GetTarget(Origin)
+        if not Config.SilentAim then return nil end
+        local ClosestPart = nil
+        local ClosestDist = Config.FOV
+
+        for _, Plr in ipairs(Players:GetPlayers()) do
+            if Plr == LocalPlayer then continue end
+            if IsSameTeam(Plr) then continue end
+            if IsWhitelisted(Plr) then continue end
+
+            local Char = Plr.Character
+            if not Char then continue end
+            if Char:FindFirstChildOfClass("ForceField") then continue end
+            local Hum = Char:FindFirstChild("Humanoid")
+            if not Hum or Hum.Health <= 0 then continue end
+
+            local TargetRoot = Char:FindFirstChild(Config.TargetPart) or Char.PrimaryPart
+            if not TargetRoot then continue end
+
+            local Pos, OnScreen = Camera:WorldToViewportPoint(TargetRoot.Position)
+            if not OnScreen then continue end
+
+            if Config.WallCheck then
+                local Visible, HitPart = IsVisible(TargetRoot, Origin)
+                if not Visible then
+                    local HRP = Char:FindFirstChild("HumanoidRootPart")
+                    if HRP then
+                        Visible, HitPart = IsVisible(HRP, Origin)
+                    end
+                    if not Visible then continue end
+                end
+                if HitPart then TargetRoot = HitPart end
+            end
+
+            local Dist = (Vector2.new(Pos.X, Pos.Y) - Mouse.ViewportPosition).Magnitude
+            if Dist < ClosestDist then
+                ClosestPart = TargetRoot
+                ClosestDist = Dist
+            end
+        end
+
+        return ClosestPart
+    end
+
+    local Controller = LocalPlayer.PlayerScripts:FindFirstChild("Controller")
+    if not Controller then
+        Library:Notify({Title = "Swift", Description = "Controller not found!", Time = 5})
+        return
+    end
+
+    local ControllerEnv = getsenv(Controller)
+    if not ControllerEnv or not ControllerEnv.BulletHit then
+        Library:Notify({Title = "Swift", Description = "BulletHit not found!", Time = 5})
+        return
+    end
+
+    local OldBulletHit
+    OldBulletHit = hookfunction(ControllerEnv.BulletHit, newcclosure(function(Args1, Args2, ...)
+        local Origin = Camera.CFrame.Position
+        local Target = GetTarget(Origin)
+        if Target then
+            return OldBulletHit(Args1, {
+                ["Instance"] = Target,
+                ["Position"] = Target.Position,
+                ["Normal"] = Vector3.new(0, 1, 0),
+                ["Material"] = Target.Material,
+            }, ...)
+        end
+        return OldBulletHit(Args1, Args2, ...)
+    end))
+
     local function GetClosestPlayer()
         local Closest = nil
         local ShortestDist = Config.FOV
         for _, Plr in ipairs(Players:GetPlayers()) do
             if Plr == LocalPlayer then continue end
-            if not IsAlive(Plr) then continue end
-            if Config.TeamCheck and Plr.Team == LocalPlayer.Team then continue end
+            if IsSameTeam(Plr) then continue end
             if IsWhitelisted(Plr) then continue end
+            if not IsAlive(Plr) then continue end
             local Char = Plr.Character
             local Root = Char and Char:FindFirstChild(Config.TargetPart)
             if not Root then continue end
             local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
             if not OnScreen then continue end
-            if Config.WallCheck then
-                local Origin = Camera.CFrame.Position
-                local Direction = (Root.Position - Origin).Unit * 1000
-                local RayParams = RaycastParams.new()
-                RayParams.FilterType = Enum.RaycastFilterType.Exclude
-                RayParams.FilterDescendantsInstances = {GetCharacter()}
-                local Result = workspace:Raycast(Origin, Direction, RayParams)
-                if Result and not Result.Instance:IsDescendantOf(Char) then
-                    continue
-                end
-            end
-            local Dist = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+            local Dist = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Mouse.ViewportPosition).Magnitude
             if Dist < ShortestDist then
                 ShortestDist = Dist
                 Closest = Plr
             end
         end
         return Closest
-    end
-
-    local function GetTargetPosition()
-        if Config.PriorityTarget and IsAlive(Config.PriorityTarget) then
-            local Char = Config.PriorityTarget.Character
-            local Part = Char:FindFirstChild(Config.AimPart)
-            if Part then return Part.Position end
-        end
-        local Target = GetClosestPlayer()
-        if not Target then return nil end
-        local Char = Target.Character
-        local Part = Char:FindFirstChild(Config.AimPart)
-        return Part and Part.Position
-    end
-
-    local function HookRemote()
-        local OldNamecall
-        OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            local Method = getnamecallmethod()
-            local Args = {...}
-            if Method == "FireServer" and self == ShootRemote and Config.SilentAim then
-                local TargetPos = GetTargetPosition()
-                if TargetPos then
-                    Args[1] = {
-                        {TargetPos.X, TargetPos.Y, TargetPos.Z},
-                        Args[1][2]
-                    }
-                    return OldNamecall(self, unpack(Args))
-                end
-            end
-            return OldNamecall(self, ...)
-        end))
     end
 
     local function CreateESP(Plr)
@@ -178,7 +227,7 @@ return function()
     end
 
     local function UpdateESP()
-        FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y)
+        FOVCircle.Position = Mouse.ViewportPosition
         FOVCircle.Radius = Config.FOV
         if not Config.ESPEnabled then
             for _, ESP in pairs(ESPObjects) do
@@ -288,9 +337,9 @@ return function()
 
     AimGroup:AddSlider("FOVSlider", {
         Text = "FOV Size",
-        Default = 150,
-        Min = 10,
-        Max = 500,
+        Default = 300,
+        Min = 50,
+        Max = 800,
         Rounding = 0,
         Callback = function(Value) Config.FOV = Value FOVCircle.Radius = Value end,
     })
@@ -309,7 +358,7 @@ return function()
 
     AimGroup:AddToggle("WallCheck", {
         Text = "Wall Check",
-        Default = false,
+        Default = true,
         Callback = function(Value) Config.WallCheck = Value end,
     })
 
@@ -414,7 +463,6 @@ return function()
         end,
     })
 
-    pcall(HookRemote)
     Connections.ESP = RunService.RenderStepped:Connect(UpdateESP)
 
     Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Plr)
