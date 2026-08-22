@@ -40,6 +40,12 @@ return function()
         ESPTracers = false,
         ESPColor = Color3.fromRGB(255, 255, 255),
         ESPMaxDistance = 1000,
+        ESPTeamColor = false,
+        SpeedEnabled = false,
+        SpeedValue = 16,
+        JumpEnabled = false,
+        JumpValue = 50,
+        AutoReload = false,
         Whitelist = {},
         PriorityTarget = nil,
     }
@@ -130,7 +136,7 @@ return function()
                 if HitPart then TargetRoot = HitPart end
             end
 
-            local Dist = (Vector2.new(Pos.X, Pos.Y) - Mouse.ViewportPosition).Magnitude
+            local Dist = (Vector2.new(Pos.X, Pos.Y) - UserInputService:GetMouseLocation()).Magnitude
             if Dist < ClosestDist then
                 ClosestPart = TargetRoot
                 ClosestDist = Dist
@@ -167,6 +173,50 @@ return function()
         return OldBulletHit(Args1, Args2, ...)
     end))
 
+    local function UpdateVelocity()
+        local Char = GetCharacter()
+        if not Char then return end
+        local HRP = Char:FindFirstChild("HumanoidRootPart")
+        local Hum = Char:FindFirstChild("Humanoid")
+        if not HRP or not Hum then return end
+
+        if Config.SpeedEnabled then
+            local MoveDir = Hum.MoveDirection
+            if MoveDir.Magnitude > 0 then
+                HRP.Velocity = Vector3.new(MoveDir.X * Config.SpeedValue, HRP.Velocity.Y, MoveDir.Z * Config.SpeedValue)
+            end
+        end
+
+        if Config.JumpEnabled then
+            if HRP.Velocity.Y > 0 or Hum.FloorMaterial == Enum.Material.Air then
+                if HRP.Velocity.Y < Config.JumpValue then
+                    HRP.Velocity = Vector3.new(HRP.Velocity.X, Config.JumpValue, HRP.Velocity.Z)
+                end
+            end
+        end
+    end
+
+    local function AutoReload()
+        if not Config.AutoReload then return end
+        local Char = GetCharacter()
+        if not Char then return end
+        local Hum = Char:FindFirstChild("Humanoid")
+        if not Hum or Hum.Health <= 0 then return end
+        local CurrentAmmo = LocalPlayer.PlayerGui:FindFirstChild("WeaponUI")
+        if CurrentAmmo then
+            local AmmoLabel = CurrentAmmo:FindFirstChild("Ammo")
+            if AmmoLabel then
+                local Text = AmmoLabel:FindFirstChild("Current") and AmmoLabel.Current.Text or ""
+                if Text == "0" then
+                    local ReloadRemote = Remotes:FindFirstChild("Reload")
+                    if ReloadRemote then
+                        ReloadRemote:FireServer()
+                    end
+                end
+            end
+        end
+    end
+
     local function GetClosestPlayer()
         local Closest = nil
         local ShortestDist = Config.FOV
@@ -180,7 +230,7 @@ return function()
             if not Root then continue end
             local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
             if not OnScreen then continue end
-            local Dist = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Mouse.ViewportPosition).Magnitude
+            local Dist = (Vector2.new(ScreenPos.X, ScreenPos.Y) - UserInputService:GetMouseLocation()).Magnitude
             if Dist < ShortestDist then
                 ShortestDist = Dist
                 Closest = Plr
@@ -227,7 +277,7 @@ return function()
     end
 
     local function UpdateESP()
-        FOVCircle.Position = Mouse.ViewportPosition
+        FOVCircle.Position = UserInputService:GetMouseLocation()
         FOVCircle.Radius = Config.FOV
         if not Config.ESPEnabled then
             for _, ESP in pairs(ESPObjects) do
@@ -259,10 +309,14 @@ return function()
                             local Height = math.abs(HeadPos.Y - LegPos.Y)
                             local Width = Height / 2
                             local BoxPos = Vector2.new(Pos.X - Width / 2, Pos.Y - Height / 2)
+                            local ESPColor = Config.ESPColor
+                            if Config.ESPTeamColor and Plr.Team and Plr.Team.TeamColor then
+                                ESPColor = Plr.Team.TeamColor.Color
+                            end
                             if Config.ESPBoxes then
                                 ESP.Box.Size = Vector2.new(Width, Height)
                                 ESP.Box.Position = BoxPos
-                                ESP.Box.Color = Config.ESPColor
+                                ESP.Box.Color = ESPColor
                                 ESP.Box.Visible = true
                             else
                                 ESP.Box.Visible = false
@@ -270,7 +324,7 @@ return function()
                             if Config.ESPNames then
                                 ESP.Name.Text = Plr.DisplayName
                                 ESP.Name.Position = Vector2.new(Pos.X, BoxPos.Y - 16)
-                                ESP.Name.Color = Config.ESPColor
+                                ESP.Name.Color = ESPColor
                                 ESP.Name.Visible = true
                             else
                                 ESP.Name.Visible = false
@@ -295,7 +349,7 @@ return function()
                             if Config.ESPTracers then
                                 ESP.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                                 ESP.Tracer.To = Vector2.new(Pos.X, Pos.Y)
-                                ESP.Tracer.Color = Config.ESPColor
+                                ESP.Tracer.Color = ESPColor
                                 ESP.Tracer.Visible = true
                             else
                                 ESP.Tracer.Visible = false
@@ -455,6 +509,48 @@ return function()
         Callback = function(Value) Config.ESPMaxDistance = Value end,
     })
 
+    ESPGroup:AddToggle("ESPTeamColor", {
+        Text = "Team Color",
+        Default = false,
+        Callback = function(Value) Config.ESPTeamColor = Value end,
+    })
+
+    SettingsGroup:AddToggle("SpeedEnabled", {
+        Text = "Velocity Speed",
+        Default = false,
+        Callback = function(Value) Config.SpeedEnabled = Value end,
+    })
+
+    SettingsGroup:AddSlider("SpeedValue", {
+        Text = "Speed",
+        Default = 16,
+        Min = 16,
+        Max = 200,
+        Rounding = 0,
+        Callback = function(Value) Config.SpeedValue = Value end,
+    })
+
+    SettingsGroup:AddToggle("JumpEnabled", {
+        Text = "Velocity Jump",
+        Default = false,
+        Callback = function(Value) Config.JumpEnabled = Value end,
+    })
+
+    SettingsGroup:AddSlider("JumpValue", {
+        Text = "Jump Power",
+        Default = 50,
+        Min = 50,
+        Max = 200,
+        Rounding = 0,
+        Callback = function(Value) Config.JumpValue = Value end,
+    })
+
+    SettingsGroup:AddToggle("AutoReload", {
+        Text = "Auto Reload",
+        Default = false,
+        Callback = function(Value) Config.AutoReload = Value end,
+    })
+
     SettingsGroup:AddButton({
         Text = "Destroy UI",
         Func = function()
@@ -463,7 +559,12 @@ return function()
         end,
     })
 
-    Connections.ESP = RunService.RenderStepped:Connect(UpdateESP)
+    Connections.ESP = RunService.RenderStepped:Connect(function()
+        UpdateESP()
+        UpdateVelocity()
+    end)
+
+    Connections.Reload = RunService.Heartbeat:Connect(AutoReload)
 
     Connections.PlayerAdded = Players.PlayerAdded:Connect(function(Plr)
         CreateESP(Plr)
